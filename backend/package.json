@@ -1,0 +1,29 @@
+{
+  "name": "@etsy-orchestrator/backend",
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch queue/workers/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
+  },
+  "dependencies": {
+    "@etsy-orchestrator/agents": "*",
+    "@etsy-orchestrator/shared": "*",
+    "bullmq": "^5.7.0",
+    "drizzle-orm": "^0.30.0",
+    "node-cron": "^3.0.3",
+    "pg": "^8.11.0",
+    "snoowrap": "^1.23.0",
+    "google-trends-api": "^4.9.2",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "drizzle-kit": "^0.20.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}

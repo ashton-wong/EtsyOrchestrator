@@ -1,0 +1,26 @@
+{
+  "name": "@etsy-orchestrator/agents",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./handoffs/*": "./handoffs/*.js",
+    "./researcher": "./researcher/index.js",
+    "./creative-director": "./creative-director/index.js",
+    "./marketer": "./marketer/index.js",
+    "./operator": "./operator/index.js",
+    "./analyst": "./analyst/index.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.30.0",
+    "@etsy-orchestrator/shared": "*",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "typescript": "^5.4.0"
+  }
+}

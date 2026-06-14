@@ -1,0 +1,7 @@
+{
+  "name": "@etsy-orchestrator/shared",
+  "version": "0.0.1",
+  "main": "./types/index.js",
+  "types": "./types/index.d.ts",
+  "type": "module"
+}
