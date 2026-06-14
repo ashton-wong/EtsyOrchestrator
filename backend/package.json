@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch queue/workers/index.ts",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate:pg --schema=./db/schema.ts --out=./db/migrations",
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
