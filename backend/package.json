@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "tsx watch queue/workers/index.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "test": "vitest run"
   },
   "dependencies": {
     "@etsy-orchestrator/agents": "*",
