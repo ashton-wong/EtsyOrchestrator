@@ -1,12 +1,12 @@
 {
-  "version": "5",
-  "dialect": "pg",
+  "version": "6",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1781426000678,
-      "tag": "0000_pink_xavin",
+      "version": "6",
+      "when": 1781426155595,
+      "tag": "0000_large_betty_ross",
       "breakpoints": true
     }
   ]

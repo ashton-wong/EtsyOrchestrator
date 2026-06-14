@@ -1,10 +1,10 @@
 {
-  "id": "52e655d8-04c5-4b25-a933-ef89c8fced38",
+  "id": "c274815b-18d9-4f4e-9543-6f2ee5ef1cbd",
   "prevId": "00000000-0000-0000-0000-000000000000",
-  "version": "5",
-  "dialect": "pg",
+  "version": "6",
+  "dialect": "postgresql",
   "tables": {
-    "listing_signals": {
+    "public.listing_signals": {
       "name": "listing_signals",
       "schema": "",
       "columns": {
@@ -84,7 +84,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "products": {
+    "public.products": {
       "name": "products",
       "schema": "",
       "columns": {
@@ -146,7 +146,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {}
     },
-    "runs": {
+    "public.runs": {
       "name": "runs",
       "schema": "",
       "columns": {
@@ -160,6 +160,7 @@
         "status": {
           "name": "status",
           "type": "run_status",
+          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
           "default": "'researching'"
@@ -216,18 +217,19 @@
     }
   },
   "enums": {
-    "run_status": {
+    "public.run_status": {
       "name": "run_status",
-      "values": {
-        "researching": "researching",
-        "designing": "designing",
-        "generating_copy": "generating_copy",
-        "pending_approval": "pending_approval",
-        "deploying": "deploying",
-        "live": "live",
-        "rejected": "rejected",
-        "failed": "failed"
-      }
+      "schema": "public",
+      "values": [
+        "researching",
+        "designing",
+        "generating_copy",
+        "pending_approval",
+        "deploying",
+        "live",
+        "rejected",
+        "failed"
+      ]
     }
   },
   "schemas": {},

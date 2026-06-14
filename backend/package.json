@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch queue/workers/index.ts",
-    "db:generate": "drizzle-kit generate:pg --schema=./db/schema.ts --out=./db/migrations",
+    "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
@@ -21,7 +21,7 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/pg": "^8.11.0",
-    "drizzle-kit": "^0.20.0",
+    "drizzle-kit": "^0.21.0",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
