@@ -20,9 +20,18 @@ export default async function RunsList() {
                     {(run.trend_report as { niche_name: string }).niche_name}
                   </span>
                 )}
+                {run.run_type === "copy_refresh" && (
+                  <span className="ml-3 text-sm text-gray-400 italic">copy refresh</span>
+                )}
               </div>
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-2 items-center">
                 <span className="text-xs text-gray-400">{new Date(run.created_at).toLocaleDateString()}</span>
+                {run.triggered_by === "analyst" && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700">Analyst</span>
+                )}
+                {run.run_type === "copy_refresh" && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-orange-100 text-orange-700">Refresh</span>
+                )}
                 <span className={`text-xs px-2 py-1 rounded-full ${
                   run.status === "live" ? "bg-green-100 text-green-700" :
                   run.status === "rejected" ? "bg-gray-100 text-gray-500" :
