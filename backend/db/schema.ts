@@ -6,12 +6,18 @@ import { relations } from "drizzle-orm";
 
 export const runStatusEnum = pgEnum("run_status", [
   "researching", "designing", "generating_copy", "pending_approval",
-  "deploying", "live", "rejected", "failed",
+  "deploying", "updating", "live", "rejected", "failed",
 ]);
+
+export const runTypeEnum = pgEnum("run_type", ["new_product", "copy_refresh"]);
+export const triggeredByEnum = pgEnum("triggered_by", ["human", "analyst"]);
 
 export const runs = pgTable("runs", {
   id: uuid("id").primaryKey().defaultRandom(),
   status: runStatusEnum("status").notNull().default("researching"),
+  run_type: runTypeEnum("run_type").notNull().default("new_product"),
+  triggered_by: triggeredByEnum("triggered_by").notNull().default("human"),
+  source_product_id: uuid("source_product_id"), // no FK — avoids circular ref
   seed_keywords: text("seed_keywords").array(),
   trend_report: jsonb("trend_report"),
   design_batch: jsonb("design_batch"),
@@ -42,8 +48,12 @@ export const listing_signals = pgTable("listing_signals", {
   productIdx: index("signals_product_idx").on(t.product_id),
 }));
 
-// Relations — REQUIRED so the Drizzle relational query builder (db.query.*.findMany
-// with `with: {...}`) used in the query helpers below can resolve nested relations.
+export const analyst_reports = pgTable("analyst_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  report: jsonb("report").notNull(),
+  created_at: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const runsRelations = relations(runs, ({ many }) => ({
   products: many(products),
 }));
