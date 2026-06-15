@@ -27,3 +27,18 @@ export async function getShopListings(shopId: string): Promise<{ listing_id: str
   );
   return data.results;
 }
+
+export async function updateListing(listingId: string, copy: {
+  title: string;
+  description: string;
+  tags: string[];
+}): Promise<void> {
+  await request(`/application/listings/${listingId}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      title: copy.title,
+      description: copy.description,
+      tags: copy.tags,
+    }),
+  });
+}
