@@ -2,12 +2,12 @@ import { Worker } from "bullmq";
 import { redis, DEPLOY_JOB_OPTIONS } from "../index.js";
 import { runOperator } from "@etsy-orchestrator/agents/operator";
 import { uploadImage, createProduct, publishProduct } from "../../services/printify.js";
+import { updateListing } from "../../services/etsy.js";
 import { updateRunStatus } from "../../db/queries/runs.js";
-import { createProduct as createProductRecord } from "../../db/queries/products.js";
+import { createProduct as createProductRecord, getProductById } from "../../db/queries/products.js";
+import type { ProductCopy } from "@etsy-orchestrator/agents/handoffs/ProductCopy";
 
 async function getEtsyListingId(printifyProductId: string): Promise<string> {
-  // Printify's publish endpoint is async — poll for the Etsy listing ID
-  // It typically appears within 30 seconds
   for (let i = 0; i < 10; i++) {
     await new Promise((r) => setTimeout(r, 5000));
     const product = await fetch(
@@ -22,7 +22,18 @@ async function getEtsyListingId(printifyProductId: string): Promise<string> {
 export const deployWorker = new Worker(
   "deploy",
   async (job) => {
-    const { runId, selectedDesign, productCopy, nicheName } = job.data;
+    const { runId, run_type, selectedDesign, productCopy, nicheName, source_product_id } = job.data;
+
+    if (run_type === "copy_refresh") {
+      await updateRunStatus(runId, "updating");
+      const sourceProduct = await getProductById(source_product_id);
+      if (!sourceProduct) throw new Error(`Source product ${source_product_id} not found`);
+      await updateListing(sourceProduct.etsy_listing_id, productCopy as ProductCopy);
+      await updateRunStatus(runId, "live");
+      return;
+    }
+
+    // new_product path (unchanged)
     await updateRunStatus(runId, "deploying");
 
     const result = await runOperator({
