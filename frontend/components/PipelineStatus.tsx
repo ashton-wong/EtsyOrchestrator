@@ -24,7 +24,8 @@ export function PipelineStatus({ runId, initialStatus }: { runId: string; initia
     return () => es.close();
   }, [runId, status]);
 
-  const currentIdx = STEPS.findIndex((s) => s.status === status);
+  const displayStatus = status === "updating" ? "deploying" : status;
+  const currentIdx = STEPS.findIndex((s) => s.status === displayStatus);
 
   return (
     <ol className="flex gap-4 items-center">
