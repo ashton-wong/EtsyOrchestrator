@@ -55,3 +55,30 @@ export async function publishProduct(productId: string): Promise<void> {
     }),
   });
 }
+
+export async function updateProduct(productId: string, copy: {
+  title: string;
+  description: string;
+  tags: string[];
+}): Promise<void> {
+  await request(`/shops/${SHOP_ID}/products/${productId}.json`, {
+    method: "PUT",
+    body: JSON.stringify({
+      title: copy.title,
+      description: copy.description,
+      tags: copy.tags,
+    }),
+  });
+}
+
+// Printify line-item `price` is assumed to be in cents (matches createProduct's 2499 = $24.99 convention).
+// revenue_cents = price * quantity. If a real order response shows USD instead, multiply by 100 — verify before deploying.
+// TODO: the orders endpoint is paginated (default 10/page); this returns only the first page. Paginate if order volume grows.
+export async function getShopOrders(): Promise<Array<{
+  line_items: Array<{ product_id: string; quantity: number; price: number }>;
+}>> {
+  const data = await request<{
+    data: Array<{ line_items: Array<{ product_id: string; quantity: number; price: number }> }>;
+  }>(`/shops/${SHOP_ID}/orders.json`);
+  return data.data;
+}
