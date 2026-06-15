@@ -24,19 +24,33 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     return NextResponse.json({ status: "rejected" });
   }
 
+  const baseCopy = run.product_copy as ProductCopy;
+  const finalCopy: ProductCopy = { ...baseCopy, ...body.copy_overrides };
+
+  if (run.run_type === "copy_refresh") {
+    await approveRun(params.id, 0, finalCopy); // selected_design 0 = placeholder for copy_refresh
+    await queues.deploy.add("deploy", {
+      runId: params.id,
+      run_type: "copy_refresh",
+      source_product_id: run.source_product_id,
+      productCopy: finalCopy,
+    }, DEPLOY_JOB_OPTIONS);
+    return NextResponse.json({ status: "updating" });
+  }
+
+  // new_product path
   if (body.selected_design_index === undefined) {
     return NextResponse.json({ error: "selected_design_index required for approve" }, { status: 400 });
   }
 
   const designBatch = run.design_batch as DesignBatch;
-  const baseCopy = run.product_copy as ProductCopy;
-  const finalCopy: ProductCopy = { ...baseCopy, ...body.copy_overrides };
   const selectedDesign = designBatch.designs[body.selected_design_index];
 
   await approveRun(params.id, body.selected_design_index, finalCopy);
 
   await queues.deploy.add("deploy", {
     runId: params.id,
+    run_type: "new_product",
     selectedDesign,
     productCopy: finalCopy,
     nicheName: (run.trend_report as { niche_name: string }).niche_name,
