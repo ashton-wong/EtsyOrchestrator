@@ -1,19 +1,24 @@
 import { Worker } from "bullmq";
 import { redis, queues, JOB_OPTIONS } from "../index.js";
 import { runResearcher } from "@etsy-orchestrator/agents/researcher";
-import { searchReddit, getSubredditHotPosts } from "../../services/reddit.js";
+import { searchReddit } from "../../services/reddit.js";
 import { getTrendData, getRelatedQueries } from "../../services/google-trends.js";
 import { updateRunField, updateRunStatus } from "../../db/queries/runs.js";
 
 export const trendResearchWorker = new Worker(
   "trend-research",
   async (job) => {
-    const { runId, seed_keywords } = job.data as { runId: string; seed_keywords?: string[] };
+    const { runId, seed_keywords, store_context } = job.data as {
+      runId: string;
+      seed_keywords?: string[];
+      store_context?: { existing_niches: string[]; top_performers: string[] };
+    };
 
     await updateRunStatus(runId, "researching");
 
     const trendReport = await runResearcher({
       seed_keywords,
+      store_context,
       searchReddit,
       getTrendData,
       getRelatedQueries,
