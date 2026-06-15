@@ -39,8 +39,6 @@ export const products = pgTable("products", {
 export const listing_signals = pgTable("listing_signals", {
   id: uuid("id").primaryKey().defaultRandom(),
   product_id: uuid("product_id").notNull().references(() => products.id),
-  views: integer("views").notNull().default(0),
-  favorites: integer("favorites").notNull().default(0),
   orders: integer("orders").notNull().default(0),
   revenue_cents: integer("revenue_cents").notNull().default(0),
   checked_at: timestamp("checked_at").notNull().defaultNow(),

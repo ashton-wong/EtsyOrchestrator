@@ -4,8 +4,6 @@ import { listing_signals, products } from "../schema.js";
 
 export async function insertSignal(data: {
   product_id: string;
-  views: number;
-  favorites: number;
   orders: number;
   revenue_cents: number;
 }) {

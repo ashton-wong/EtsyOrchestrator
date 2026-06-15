@@ -16,6 +16,10 @@ export async function getProductById(id: string) {
   return db.query.products.findFirst({ where: eq(products.id, id) }) ?? null;
 }
 
+export async function getProductByPrintifyId(printifyProductId: string) {
+  return db.query.products.findFirst({ where: eq(products.printify_product_id, printifyProductId) }) ?? null;
+}
+
 export async function listProducts() {
   return db.query.products.findMany({ orderBy: (p, { desc }) => [desc(p.published_at)] });
 }
