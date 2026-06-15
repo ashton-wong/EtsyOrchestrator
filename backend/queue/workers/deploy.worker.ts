@@ -1,8 +1,7 @@
 import { Worker } from "bullmq";
 import { redis, DEPLOY_JOB_OPTIONS } from "../index.js";
 import { runOperator } from "@etsy-orchestrator/agents/operator";
-import { uploadImage, createProduct, publishProduct } from "../../services/printify.js";
-import { updateListing } from "../../services/etsy.js";
+import { uploadImage, createProduct, publishProduct, updateProduct } from "../../services/printify.js";
 import { updateRunStatus } from "../../db/queries/runs.js";
 import { createProduct as createProductRecord, getProductById } from "../../db/queries/products.js";
 import type { ProductCopy } from "@etsy-orchestrator/agents/handoffs/ProductCopy";
@@ -28,7 +27,8 @@ export const deployWorker = new Worker(
       await updateRunStatus(runId, "updating");
       const sourceProduct = await getProductById(source_product_id);
       if (!sourceProduct) throw new Error(`Source product ${source_product_id} not found`);
-      await updateListing(sourceProduct.etsy_listing_id, productCopy as ProductCopy);
+      await updateProduct(sourceProduct.printify_product_id, productCopy as ProductCopy);
+      await publishProduct(sourceProduct.printify_product_id);
       await updateRunStatus(runId, "live");
       return;
     }
