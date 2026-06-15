@@ -21,6 +21,7 @@ Return a single JSON object matching this exact schema:
 
 export async function runResearcher(params: {
   seed_keywords?: string[];
+  store_context?: { existing_niches: string[]; top_performers: string[] };
   searchReddit: (query: string, subreddit?: string) => Promise<{ title: string; score: number; url: string; selftext: string }[]>;
   getTrendData: (keyword: string) => Promise<{ averageInterest: number }>;
   getRelatedQueries: (keyword: string) => Promise<string[]>;
@@ -62,14 +63,17 @@ export async function runResearcher(params: {
     ? `The user wants to explore niches related to: ${params.seed_keywords.join(", ")}.`
     : "Discover an interesting niche autonomously — look for hyper-local cultural phenomena.";
 
+  const storeContext = params.store_context?.existing_niches.length
+    ? ` Store context — this store already sells in these niches: ${params.store_context.existing_niches.join(", ")}. Top performers: ${params.store_context.top_performers.join(", ")}. Choose a niche that complements the existing catalog rather than scattering the store's brand.`
+    : "";
+
   const messages: Anthropic.MessageParam[] = [
-    { role: "user", content: `${seedContext} Research a promising niche and return the JSON schema.` },
+    { role: "user", content: `${seedContext}${storeContext} Research a promising niche and return the JSON schema.` },
   ];
 
-  // Agentic loop — Claude calls tools until it's ready to return the final JSON
   while (true) {
     const response = await client.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 4096,
       system: SYSTEM_PROMPT,
       tools,
@@ -83,7 +87,6 @@ export async function runResearcher(params: {
       return validate(json);
     }
 
-    // Process tool calls
     const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
     if (toolUseBlocks.length === 0) throw new Error("Researcher: unexpected stop reason");
 
