@@ -9,7 +9,7 @@ export async function GET() {
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({})) as { seed_keywords?: string[] };
-  const run = await createRun(body.seed_keywords);
+  const run = await createRun({ seed_keywords: body.seed_keywords });
   await queues.trendResearch.add("trend-research", {
     runId: run.id,
     seed_keywords: body.seed_keywords,

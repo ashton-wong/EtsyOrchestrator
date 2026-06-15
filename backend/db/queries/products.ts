@@ -12,6 +12,17 @@ export async function createProduct(data: {
   return product;
 }
 
+export async function getProductById(id: string) {
+  return db.query.products.findFirst({ where: eq(products.id, id) }) ?? null;
+}
+
 export async function listProducts() {
   return db.query.products.findMany({ orderBy: (p, { desc }) => [desc(p.published_at)] });
+}
+
+export async function listProductsWithRuns() {
+  return db.query.products.findMany({
+    with: { run: true },
+    orderBy: (p, { desc }) => [desc(p.published_at)],
+  });
 }

@@ -3,8 +3,18 @@ import { db } from "../index.js";
 import { runs } from "../schema.js";
 import type { RunStatus } from "@etsy-orchestrator/shared";
 
-export async function createRun(seed_keywords?: string[]) {
-  const [run] = await db.insert(runs).values({ seed_keywords }).returning();
+export async function createRun(options?: {
+  seed_keywords?: string[];
+  run_type?: "new_product" | "copy_refresh";
+  triggered_by?: "human" | "analyst";
+  source_product_id?: string;
+}) {
+  const [run] = await db.insert(runs).values({
+    seed_keywords: options?.seed_keywords,
+    run_type: options?.run_type ?? "new_product",
+    triggered_by: options?.triggered_by ?? "human",
+    source_product_id: options?.source_product_id,
+  }).returning();
   return run;
 }
 
