@@ -1,21 +1,14 @@
 import cron from "node-cron";
 import { runAnalyst, runAnalystSynthesis } from "@etsy-orchestrator/agents/analyst";
-import { getShopListings, getListingStats } from "../services/etsy.js";
+import { getShopOrders } from "../services/printify.js";
 import { insertSignal, getSignalsForProduct } from "../db/queries/signals.js";
 import { insertAnalystReport } from "../db/queries/analyst-reports.js";
 import { createRun } from "../db/queries/runs.js";
-import { listProductsWithRuns } from "../db/queries/products.js";
+import { listProductsWithRuns, getProductByPrintifyId } from "../db/queries/products.js";
 import { queues, JOB_OPTIONS } from "../queue/index.js";
-import { db } from "../db/index.js";
-import { products } from "../db/schema.js";
-import { eq } from "drizzle-orm";
 
 const MAX_WEEKLY_AUTO_NEW_PRODUCTS = parseInt(process.env.MAX_WEEKLY_AUTO_NEW_PRODUCTS ?? "2");
 const MAX_WEEKLY_COPY_REFRESHES = parseInt(process.env.MAX_WEEKLY_COPY_REFRESHES ?? "5");
-
-async function getProductByListingId(listingId: string) {
-  return db.query.products.findFirst({ where: eq(products.etsy_listing_id, listingId) }) ?? null;
-}
 
 export function startAnalystCron() {
   // Signal collection — every 6 hours, no LLM
@@ -23,11 +16,9 @@ export function startAnalystCron() {
     console.log("[Analyst] Running signal collection...");
     try {
       await runAnalyst({
-        shopId: process.env.ETSY_SHOP_ID!,
-        getShopListings,
-        getListingStats,
+        getShopOrders,
         insertSignal,
-        getProductByListingId,
+        getProductByPrintifyId,
       });
       console.log("[Analyst] Signal collection complete.");
     } catch (err) {
@@ -53,9 +44,8 @@ export function startAnalystCron() {
         allProducts.map(async (p) => {
           const signals = await getSignalsForProduct(p.id);
           const recent = signals.filter((s) => new Date(s.checked_at) >= sevenDaysAgo);
-          const totalViews = recent.reduce((sum, s) => sum + s.views, 0);
-          const totalFavorites = recent.reduce((sum, s) => sum + s.favorites, 0);
           const totalOrders = recent.reduce((sum, s) => sum + s.orders, 0);
+          const totalRevenueCents = recent.reduce((sum, s) => sum + s.revenue_cents, 0);
           const daysLive = Math.floor((now - new Date(p.published_at).getTime()) / (1000 * 60 * 60 * 24));
           const nicheName = (p.run?.trend_report as { niche_name?: string } | null)?.niche_name ?? p.listing_url;
 
@@ -64,9 +54,8 @@ export function startAnalystCron() {
             listing_url: p.listing_url,
             niche_name: nicheName,
             days_live: daysLive,
-            total_views: totalViews,
-            total_favorites: totalFavorites,
             total_orders: totalOrders,
+            total_revenue_cents: totalRevenueCents,
           };
         })
       );
@@ -76,7 +65,6 @@ export function startAnalystCron() {
 
       console.log("[Analyst] Synthesis complete. Queuing runs...");
 
-      // Queue copy refreshes (directly into seo-copy — skips Researcher + Creative Director)
       const refreshCandidates = report.copy_refresh_candidates.slice(0, MAX_WEEKLY_COPY_REFRESHES);
       for (const candidate of refreshCandidates) {
         const run = await createRun({
@@ -93,7 +81,6 @@ export function startAnalystCron() {
         console.log(`[Analyst] Queued copy_refresh run ${run.id} for product ${candidate.product_id}`);
       }
 
-      // Queue new product runs (full pipeline, with store context)
       const topPerformerNiches = report.top_performers
         .map((tp) => productSignals.find((ps) => ps.product_id === tp.product_id)?.niche_name)
         .filter((n): n is string => Boolean(n));
