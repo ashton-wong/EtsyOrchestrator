@@ -4,31 +4,36 @@ import { validate, type AnalystReport } from "../handoffs/AnalystReport.js";
 const client = new Anthropic();
 
 export async function runAnalyst(params: {
-  shopId: string;
-  getShopListings: (shopId: string) => Promise<{ listing_id: string }[]>;
-  getListingStats: (listingId: string) => Promise<{ views: number; num_favorers: number }>;
+  getShopOrders: () => Promise<Array<{
+    line_items: Array<{ product_id: string; quantity: number; price: number }>;
+  }>>;
   insertSignal: (data: {
     product_id: string;
-    views: number;
-    favorites: number;
     orders: number;
     revenue_cents: number;
   }) => Promise<void>;
-  getProductByListingId: (listingId: string) => Promise<{ id: string } | null>;
+  getProductByPrintifyId: (printifyProductId: string) => Promise<{ id: string } | null>;
 }): Promise<void> {
-  const listings = await params.getShopListings(params.shopId);
+  const orders = await params.getShopOrders();
 
-  for (const listing of listings) {
-    const product = await params.getProductByListingId(listing.listing_id);
+  const byProduct = new Map<string, { orders: number; revenue_cents: number }>();
+  for (const order of orders) {
+    for (const item of order.line_items) {
+      const existing = byProduct.get(item.product_id) ?? { orders: 0, revenue_cents: 0 };
+      byProduct.set(item.product_id, {
+        orders: existing.orders + item.quantity,
+        revenue_cents: existing.revenue_cents + item.price * item.quantity,
+      });
+    }
+  }
+
+  for (const [printifyProductId, agg] of byProduct) {
+    const product = await params.getProductByPrintifyId(printifyProductId);
     if (!product) continue;
-
-    const stats = await params.getListingStats(listing.listing_id);
     await params.insertSignal({
       product_id: product.id,
-      views: stats.views,
-      favorites: stats.num_favorers,
-      orders: 0, // Etsy Stats API v3 — orders require separate receipts endpoint
-      revenue_cents: 0,
+      orders: agg.orders,
+      revenue_cents: agg.revenue_cents,
     });
   }
 }
@@ -39,9 +44,8 @@ export async function runAnalystSynthesis(params: {
     listing_url: string;
     niche_name: string;
     days_live: number;
-    total_views: number;
-    total_favorites: number;
     total_orders: number;
+    total_revenue_cents: number;
   }[];
 }): Promise<AnalystReport> {
   const response = await client.messages.create({
@@ -59,9 +63,9 @@ Return a JSON object with this exact shape:
 }
 
 Rules:
-- copy_refresh_candidates: products live > 14 days with < 30 total_views, OR favorites < 2% of views
+- copy_refresh_candidates: products live > 21 days with 0 total_orders
 - new_niche_seeds: 1-3 ideas that complement the existing store catalog; build on what is working
-- top_performers: products with highest engagement relative to days_live
+- top_performers: products with highest orders and revenue relative to days_live
 - product_id values must be the exact UUIDs from the input data`,
     messages: [{
       role: "user",
