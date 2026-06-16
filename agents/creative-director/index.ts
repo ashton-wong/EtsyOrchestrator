@@ -6,65 +6,56 @@ import type { TrendReport } from "../handoffs/TrendReport.js";
 const client = new Anthropic();
 
 const SYSTEM_PROMPT = `You are a graphic design director for an Etsy print-on-demand store.
-You receive a trend report about a niche and must generate 3-5 distinct image prompts
-for a t-shirt graphic designer. Then call generate_image for each prompt.
+You receive a trend report about a niche and must write 3-5 distinct image-generation prompts
+for a t-shirt graphic.
 
 Prompts must be: specific, visual, suitable for apparel (no faces, no copyrighted imagery),
 and deeply resonant with the niche's cultural identity.
 
-After generating all images, return a JSON object:
+Return ONLY a JSON object:
 {
-  "designs": [
-    { "image_url": "<url from tool>", "prompt_used": "<the exact prompt>", "rank": 1 },
+  "prompts": [
+    { "prompt": "<detailed image-generation prompt>", "rank": 1 },
     ...
   ]
 }
-Rank 1 = most likely to sell. designs must have 3-5 items.`;
+Rank 1 = most likely to sell. Include 3-5 prompts.`;
+
+// Images are generated in code (not via a tool the LLM echoes), so the large base64
+// image bytes Gemini returns never have to round-trip through the model's context.
+export async function buildDesignBatch(
+  prompts: { prompt: string; rank: number }[],
+  generateImage: (prompt: string) => Promise<string>,
+): Promise<DesignBatch> {
+  const designs = await Promise.all(
+    prompts.map(async (p) => ({
+      image_url: await generateImage(p.prompt),
+      prompt_used: p.prompt,
+      rank: p.rank,
+    })),
+  );
+  return validate({ designs });
+}
 
 export async function runCreativeDirector(params: {
   trendReport: TrendReport;
   generateImage: (prompt: string) => Promise<string>;
 }): Promise<DesignBatch> {
-  const tools: Anthropic.Tool[] = [{
-    name: "generate_image",
-    description: "Generate an apparel graphic image from a text prompt. Returns the image URL.",
-    input_schema: {
-      type: "object",
-      properties: { prompt: { type: "string", description: "Detailed image generation prompt" } },
-      required: ["prompt"],
-    },
-  }];
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 2048,
+    system: SYSTEM_PROMPT,
+    messages: [{
+      role: "user",
+      content: `Here is the trend report:\n${JSON.stringify(params.trendReport, null, 2)}\n\nWrite 3-5 apparel design prompts and return the JSON schema.`,
+    }],
+  });
 
-  const messages: Anthropic.MessageParam[] = [{
-    role: "user",
-    content: `Here is the trend report:\n${JSON.stringify(params.trendReport, null, 2)}\n\nGenerate 3-5 apparel design variants and return the JSON schema.`,
-  }];
+  const textBlock = response.content.find((b) => b.type === "text");
+  if (!textBlock || textBlock.type !== "text") throw new Error("CreativeDirector: no text output");
 
-  while (true) {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      max_tokens: 4096,
-      system: SYSTEM_PROMPT,
-      tools,
-      messages,
-    });
+  const parsed = extractJson(textBlock.text) as { prompts?: { prompt: string; rank: number }[] };
+  if (!parsed.prompts?.length) throw new Error("CreativeDirector: model returned no prompts");
 
-    if (response.stop_reason === "end_turn") {
-      const textBlock = response.content.find((b) => b.type === "text");
-      if (!textBlock || textBlock.type !== "text") throw new Error("CreativeDirector: no text output");
-      return validate(extractJson(textBlock.text));
-    }
-
-    const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");
-    messages.push({ role: "assistant", content: response.content });
-
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const block of toolUseBlocks) {
-      if (block.type !== "tool_use") continue;
-      const { prompt } = block.input as { prompt: string };
-      const image_url = await params.generateImage(prompt);
-      toolResults.push({ type: "tool_result", tool_use_id: block.id, content: image_url });
-    }
-    messages.push({ role: "user", content: toolResults });
-  }
+  return buildDesignBatch(parsed.prompts, params.generateImage);
 }

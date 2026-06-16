@@ -14,10 +14,18 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
   return response.json() as Promise<T>;
 }
 
-export async function uploadImage(imageUrl: string, fileName: string): Promise<string> {
+// `image` may be a hosted URL or base64 (incl. a "data:" URI from Gemini).
+// Printify accepts either `url` or base64 `contents` (no data: prefix).
+export async function uploadImage(image: string, fileName: string): Promise<string> {
+  const body: Record<string, string> = { file_name: fileName };
+  if (/^https?:\/\//i.test(image)) {
+    body.url = image;
+  } else {
+    body.contents = image.startsWith("data:") ? (image.split(",")[1] ?? "") : image;
+  }
   const data = await request<{ id: string }>("/uploads/images.json", {
     method: "POST",
-    body: JSON.stringify({ file_name: fileName, url: imageUrl }),
+    body: JSON.stringify(body),
   });
   return data.id;
 }
