@@ -67,12 +67,37 @@ export function buildResearcherTools(opts: { reddit: boolean }): Anthropic.Tool[
   return tools;
 }
 
-export async function runResearcher(params: {
-  seed_keywords?: string[];
-  store_context?: { existing_niches: string[]; top_performers: string[] };
+type ResearcherDeps = {
   searchReddit?: (query: string, subreddit?: string) => Promise<{ title: string; score: number; url: string; selftext: string }[]>;
   getTrendData: (keyword: string) => Promise<{ averageInterest: number }>;
   getRelatedQueries: (keyword: string) => Promise<string[]>;
+};
+
+// Exported so it can be unit-tested without mocking the Anthropic client.
+// Returns an error object (never throws) so a failing tool doesn't abort the whole job.
+export async function dispatchResearcherTool(
+  name: string,
+  input: Record<string, string>,
+  deps: ResearcherDeps,
+): Promise<unknown> {
+  try {
+    if (name === "search_reddit" && deps.searchReddit) {
+      return await deps.searchReddit(input.query, input.subreddit);
+    } else if (name === "get_trend_data") {
+      return await deps.getTrendData(input.keyword);
+    } else if (name === "get_related_queries") {
+      return await deps.getRelatedQueries(input.keyword);
+    } else {
+      return { error: "unknown tool" };
+    }
+  } catch (err) {
+    return { error: `Tool temporarily unavailable: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+export async function runResearcher(params: ResearcherDeps & {
+  seed_keywords?: string[];
+  store_context?: { existing_niches: string[]; top_performers: string[] };
 }): Promise<TrendReport> {
   const reddit = Boolean(params.searchReddit);
   const tools = buildResearcherTools({ reddit });
@@ -116,15 +141,7 @@ export async function runResearcher(params: {
       const input = block.input as Record<string, string>;
       let result: unknown;
 
-      if (block.name === "search_reddit" && params.searchReddit) {
-        result = await params.searchReddit(input.query, input.subreddit);
-      } else if (block.name === "get_trend_data") {
-        result = await params.getTrendData(input.keyword);
-      } else if (block.name === "get_related_queries") {
-        result = await params.getRelatedQueries(input.keyword);
-      } else {
-        result = { error: "unknown tool" };
-      }
+      result = await dispatchResearcherTool(block.name, input, params);
 
       toolResults.push({ type: "tool_result", tool_use_id: block.id, content: JSON.stringify(result) });
     }
