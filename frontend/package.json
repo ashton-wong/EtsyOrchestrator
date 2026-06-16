@@ -2,7 +2,7 @@
   "name": "@etsy-orchestrator/frontend",
   "version": "0.0.1",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node --env-file=../.env ../node_modules/.bin/next dev",
     "build": "next build",
     "start": "next start"
   },
