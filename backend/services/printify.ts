@@ -36,12 +36,14 @@ export async function createProduct(params: {
   description: string;
   imageId: string;
   skuId: string;
+  tags?: string[];
 }): Promise<string> {
   const data = await request<{ id: string }>(`/shops/${SHOP_ID}/products.json`, {
     method: "POST",
     body: JSON.stringify({
       title: params.title,
       description: params.description,
+      tags: params.tags ?? [],
       blueprint_id: parseInt(params.skuId.split(":")[0]),
       print_provider_id: parseInt(params.skuId.split(":")[1]),
       variants: [{ id: parseInt(params.skuId.split(":")[2]), price: 2499, is_enabled: true }],

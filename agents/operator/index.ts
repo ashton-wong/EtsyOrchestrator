@@ -7,7 +7,7 @@ export async function runOperator(params: {
   productCopy: ProductCopy;
   nicheName: string;
   uploadImage: (url: string, name: string) => Promise<string>;
-  createProduct: (p: { title: string; description: string; imageId: string; skuId: string }) => Promise<string>;
+  createProduct: (p: { title: string; description: string; imageId: string; skuId: string; tags: string[] }) => Promise<string>;
   publishProduct: (id: string) => Promise<void>;
   getListingId: (productId: string) => Promise<string>;
 }): Promise<PublishResult> {
@@ -19,6 +19,7 @@ export async function runOperator(params: {
     description: params.productCopy.description,
     imageId,
     skuId: process.env.PRINTIFY_BLANK_SKU_ID!,
+    tags: params.productCopy.tags,
   });
 
   await params.publishProduct(printifyProductId);
