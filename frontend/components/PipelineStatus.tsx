@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 import type { RunStatus } from "@etsy-orchestrator/shared";
 
 const STEPS: { status: RunStatus; label: string }[] = [
@@ -11,19 +10,9 @@ const STEPS: { status: RunStatus; label: string }[] = [
   { status: "live", label: "Live on Etsy" },
 ];
 
-export function PipelineStatus({ runId, initialStatus }: { runId: string; initialStatus: RunStatus }) {
-  const [status, setStatus] = useState<RunStatus>(initialStatus);
-
-  useEffect(() => {
-    if (["live", "rejected", "failed"].includes(status)) return;
-    const es = new EventSource(`/api/runs/${runId}/stream`);
-    es.onmessage = (e) => {
-      const data = JSON.parse(e.data) as { status: RunStatus };
-      setStatus(data.status);
-    };
-    return () => es.close();
-  }, [runId, status]);
-
+// Presentational only — the run-detail page owns the SSE subscription and feeds
+// `status` down, so the whole page (incl. the approval block) reacts to changes.
+export function PipelineStatus({ status }: { status: RunStatus }) {
   const displayStatus = status === "updating" ? "deploying" : status;
   const currentIdx = STEPS.findIndex((s) => s.status === displayStatus);
 

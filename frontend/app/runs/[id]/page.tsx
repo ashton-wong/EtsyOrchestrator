@@ -19,7 +19,27 @@ export default function RunDetail({ params }: { params: { id: string } }) {
   const [run, setRun] = useState<Run | null>(null);
 
   useEffect(() => {
-    fetch(`/api/runs/${params.id}`).then((r) => r.json()).then(setRun);
+    let es: EventSource | null = null;
+    let cancelled = false;
+
+    fetch(`/api/runs/${params.id}`)
+      .then((r) => r.json())
+      .then((initial: Run) => {
+        if (cancelled) return;
+        setRun(initial);
+        if (["live", "rejected", "failed"].includes(initial.status)) return;
+
+        // Stream status changes; the payload carries the full run, so product_copy /
+        // design_batch arrive with it and the approval block renders without a reload.
+        es = new EventSource(`/api/runs/${params.id}/stream`);
+        es.onmessage = (e) => {
+          const data = JSON.parse(e.data) as { status: RunStatus; run: Run };
+          setRun(data.run);
+          if (["live", "rejected", "failed"].includes(data.status)) es?.close();
+        };
+      });
+
+    return () => { cancelled = true; es?.close(); };
   }, [params.id]);
 
   if (!run) return <div className="text-gray-400">Loading...</div>;
@@ -46,7 +66,7 @@ export default function RunDetail({ params }: { params: { id: string } }) {
         )}
       </div>
 
-      <PipelineStatus runId={run.id} initialStatus={run.status} />
+      <PipelineStatus status={run.status} />
 
       {run.status === "pending_approval" && run.product_copy && (
         <div className="bg-white border rounded-xl p-6 space-y-4">
