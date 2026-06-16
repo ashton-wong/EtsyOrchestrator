@@ -1,0 +1,1 @@
+ALTER TABLE "products" ALTER COLUMN "run_id" DROP NOT NULL;

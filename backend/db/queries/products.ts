@@ -12,6 +12,18 @@ export async function createProduct(data: {
   return product;
 }
 
+// Inserts a product that did NOT originate from a run (run_id stays null) —
+// used to backfill the existing Etsy store into tracking.
+export async function importProduct(data: {
+  printify_product_id: string;
+  etsy_listing_id: string;
+  listing_url: string;
+  published_at?: Date;
+}) {
+  const [product] = await db.insert(products).values(data).returning();
+  return product;
+}
+
 export async function getProductById(id: string) {
   return db.query.products.findFirst({ where: eq(products.id, id) }) ?? null;
 }

@@ -92,3 +92,18 @@ export async function getShopOrders(): Promise<Array<{
   }>(`/shops/${SHOP_ID}/orders.json`);
   return data.data;
 }
+
+// Lists products in the shop (incl. pre-existing ones not created by this system).
+// `external` is present once a product is published to the connected sales channel (Etsy).
+// NOTE: first page only (default ~10/page) — paginate if the catalog grows past one page.
+export async function getShopProducts(): Promise<Array<{
+  id: string;
+  title?: string;
+  created_at?: string;
+  external?: { id?: string; handle?: string };
+}>> {
+  const data = await request<{
+    data: Array<{ id: string; title?: string; created_at?: string; external?: { id?: string; handle?: string } }>;
+  }>(`/shops/${SHOP_ID}/products.json`);
+  return data.data;
+}

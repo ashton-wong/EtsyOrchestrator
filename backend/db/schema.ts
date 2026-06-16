@@ -29,7 +29,8 @@ export const runs = pgTable("runs", {
 
 export const products = pgTable("products", {
   id: uuid("id").primaryKey().defaultRandom(),
-  run_id: uuid("run_id").notNull().references(() => runs.id),
+  // Nullable: products imported from the existing Etsy store have no originating run.
+  run_id: uuid("run_id").references(() => runs.id),
   printify_product_id: text("printify_product_id").notNull(),
   etsy_listing_id: text("etsy_listing_id").notNull(),
   listing_url: text("listing_url").notNull(),
