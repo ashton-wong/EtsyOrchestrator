@@ -3,12 +3,17 @@ import { validate, type TrendReport } from "../handoffs/TrendReport.js";
 
 const client = new Anthropic();
 
-const SYSTEM_PROMPT = `You are a trend researcher for an Etsy print-on-demand business.
+// Reddit access is gated behind an injected `searchReddit` dependency. When it's
+// absent (e.g. no Reddit API creds yet) the researcher runs on Google Trends alone,
+// and these builders keep the prompt/tools honest about what's available.
+export function buildResearcherSystemPrompt(opts: { reddit: boolean }): string {
+  const dataSources = opts.reddit ? "Reddit and Google Trends" : "Google Trends";
+  return `You are a trend researcher for an Etsy print-on-demand business.
 Your job is to identify hyper-local cultural niches with strong community identity and
 purchasing intent. Focus on phenomena like local pride, cultural movements, or inside
 references that resonate deeply with a specific community.
 
-You have access to Reddit and Google Trends data. Use them to validate niche ideas.
+You have access to ${dataSources} data. Use ${opts.reddit ? "them" : "it"} to validate niche ideas.
 Return a single JSON object matching this exact schema:
 {
   "niche_name": string,        // e.g. "Native Austinite"
@@ -16,18 +21,15 @@ Return a single JSON object matching this exact schema:
   "cultural_context": string,  // why this resonates right now
   "keywords": string[],        // 5-10 SEO keywords
   "trend_score": number,       // 0-100, your confidence this will sell
-  "sources": string[]          // Reddit/Google Trends URLs you consulted
+  "sources": string[]          // ${dataSources} URLs you consulted
 }`;
+}
 
-export async function runResearcher(params: {
-  seed_keywords?: string[];
-  store_context?: { existing_niches: string[]; top_performers: string[] };
-  searchReddit: (query: string, subreddit?: string) => Promise<{ title: string; score: number; url: string; selftext: string }[]>;
-  getTrendData: (keyword: string) => Promise<{ averageInterest: number }>;
-  getRelatedQueries: (keyword: string) => Promise<string[]>;
-}): Promise<TrendReport> {
-  const tools: Anthropic.Tool[] = [
-    {
+export function buildResearcherTools(opts: { reddit: boolean }): Anthropic.Tool[] {
+  const tools: Anthropic.Tool[] = [];
+
+  if (opts.reddit) {
+    tools.push({
       name: "search_reddit",
       description: "Search Reddit for posts about a topic. Returns top posts with scores.",
       input_schema: {
@@ -38,7 +40,10 @@ export async function runResearcher(params: {
         },
         required: ["query"],
       },
-    },
+    });
+  }
+
+  tools.push(
     {
       name: "get_trend_data",
       description: "Get Google Trends interest-over-time for a keyword (0-100 scale).",
@@ -57,7 +62,20 @@ export async function runResearcher(params: {
         required: ["keyword"],
       },
     },
-  ];
+  );
+
+  return tools;
+}
+
+export async function runResearcher(params: {
+  seed_keywords?: string[];
+  store_context?: { existing_niches: string[]; top_performers: string[] };
+  searchReddit?: (query: string, subreddit?: string) => Promise<{ title: string; score: number; url: string; selftext: string }[]>;
+  getTrendData: (keyword: string) => Promise<{ averageInterest: number }>;
+  getRelatedQueries: (keyword: string) => Promise<string[]>;
+}): Promise<TrendReport> {
+  const reddit = Boolean(params.searchReddit);
+  const tools = buildResearcherTools({ reddit });
 
   const seedContext = params.seed_keywords?.length
     ? `The user wants to explore niches related to: ${params.seed_keywords.join(", ")}.`
@@ -75,7 +93,7 @@ export async function runResearcher(params: {
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 4096,
-      system: SYSTEM_PROMPT,
+      system: buildResearcherSystemPrompt({ reddit }),
       tools,
       messages,
     });
@@ -98,7 +116,7 @@ export async function runResearcher(params: {
       const input = block.input as Record<string, string>;
       let result: unknown;
 
-      if (block.name === "search_reddit") {
+      if (block.name === "search_reddit" && params.searchReddit) {
         result = await params.searchReddit(input.query, input.subreddit);
       } else if (block.name === "get_trend_data") {
         result = await params.getTrendData(input.keyword);

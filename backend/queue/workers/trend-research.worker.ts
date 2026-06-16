@@ -1,7 +1,7 @@
 import { Worker } from "bullmq";
 import { redis, queues, JOB_OPTIONS } from "../index.js";
 import { runResearcher } from "@etsy-orchestrator/agents/researcher";
-import { searchReddit } from "../../services/reddit.js";
+// Reddit is disabled for now (API access pending) — the researcher runs on Google Trends alone.
 import { getTrendData, getRelatedQueries } from "../../services/google-trends.js";
 import { updateRunField, updateRunStatus } from "../../db/queries/runs.js";
 
@@ -19,7 +19,6 @@ export const trendResearchWorker = new Worker(
     const trendReport = await runResearcher({
       seed_keywords,
       store_context,
-      searchReddit,
       getTrendData,
       getRelatedQueries,
     });
