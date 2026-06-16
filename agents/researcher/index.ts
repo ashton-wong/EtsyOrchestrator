@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { validate, type TrendReport } from "../handoffs/TrendReport.js";
+import { extractJson } from "../lib/extractJson.js";
 
 const client = new Anthropic();
 
@@ -126,7 +127,7 @@ export async function runResearcher(params: ResearcherDeps & {
     if (response.stop_reason === "end_turn") {
       const textBlock = response.content.find((b) => b.type === "text");
       if (!textBlock || textBlock.type !== "text") throw new Error("Researcher: no text output");
-      const json = JSON.parse(textBlock.text);
+      const json = extractJson(textBlock.text);
       return validate(json);
     }
 

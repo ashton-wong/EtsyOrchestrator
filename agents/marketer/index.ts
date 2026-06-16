@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { validate, type ProductCopy } from "../handoffs/ProductCopy.js";
+import { extractJson } from "../lib/extractJson.js";
 import type { TrendReport } from "../handoffs/TrendReport.js";
 import type { DesignBatch } from "../handoffs/DesignBatch.js";
 
@@ -64,7 +65,7 @@ export async function runMarketer(params: {
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new Error("Marketer: no text output");
-  return validate(JSON.parse(textBlock.text));
+  return validate(extractJson(textBlock.text));
 }
 
 export async function runMarketerRefresh(params: {
@@ -100,5 +101,5 @@ Return ONLY a JSON object: { "title": string, "description": string, "tags": str
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new Error("Marketer: no text output");
-  return validate(JSON.parse(textBlock.text));
+  return validate(extractJson(textBlock.text));
 }

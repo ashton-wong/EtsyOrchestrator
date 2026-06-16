@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { validate, type DesignBatch } from "../handoffs/DesignBatch.js";
+import { extractJson } from "../lib/extractJson.js";
 import type { TrendReport } from "../handoffs/TrendReport.js";
 
 const client = new Anthropic();
@@ -51,7 +52,7 @@ export async function runCreativeDirector(params: {
     if (response.stop_reason === "end_turn") {
       const textBlock = response.content.find((b) => b.type === "text");
       if (!textBlock || textBlock.type !== "text") throw new Error("CreativeDirector: no text output");
-      return validate(JSON.parse(textBlock.text));
+      return validate(extractJson(textBlock.text));
     }
 
     const toolUseBlocks = response.content.filter((b) => b.type === "tool_use");

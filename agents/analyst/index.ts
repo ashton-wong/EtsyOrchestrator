@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { validate, type AnalystReport } from "../handoffs/AnalystReport.js";
+import { extractJson } from "../lib/extractJson.js";
 
 const client = new Anthropic();
 
@@ -75,5 +76,5 @@ Rules:
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") throw new Error("AnalystSynthesis: no text output");
-  return validate(JSON.parse(textBlock.text));
+  return validate(extractJson(textBlock.text));
 }
