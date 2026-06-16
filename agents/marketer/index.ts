@@ -5,6 +5,27 @@ import type { DesignBatch } from "../handoffs/DesignBatch.js";
 
 const client = new Anthropic();
 
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp"] as const;
+type ImageMediaType = (typeof SUPPORTED_IMAGE_TYPES)[number];
+
+// The pinned @anthropic-ai/sdk types only accept base64 (not URL) image sources, and
+// base64 is more robust for ephemeral generated-image URLs. Build a base64 image block
+// from a fetched image's content-type + bytes.
+export function toImageBlock(contentType: string | null, bytes: ArrayBuffer | Uint8Array): Anthropic.ImageBlockParam {
+  const normalized = (contentType ?? "").split(";")[0].trim().toLowerCase();
+  const media_type: ImageMediaType = (SUPPORTED_IMAGE_TYPES as readonly string[]).includes(normalized)
+    ? (normalized as ImageMediaType)
+    : "image/png";
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  return { type: "image", source: { type: "base64", media_type, data: Buffer.from(u8).toString("base64") } };
+}
+
+async function fetchImageBlock(url: string): Promise<Anthropic.ImageBlockParam> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Marketer: failed to fetch image ${url}: ${res.status}`);
+  return toImageBlock(res.headers.get("content-type"), await res.arrayBuffer());
+}
+
 const SYSTEM_PROMPT = `You are an Etsy SEO and copywriting expert. You receive a trend report
 and images of t-shirt designs. Write Etsy listing copy that will rank highly in search.
 
@@ -21,10 +42,9 @@ export async function runMarketer(params: {
   trendReport: TrendReport;
   designBatch: DesignBatch;
 }): Promise<ProductCopy> {
-  const imageBlocks: Anthropic.ImageBlockParam[] = params.designBatch.designs.map((d) => ({
-    type: "image",
-    source: { type: "url", url: d.image_url },
-  }));
+  const imageBlocks: Anthropic.ImageBlockParam[] = await Promise.all(
+    params.designBatch.designs.map((d) => fetchImageBlock(d.image_url)),
+  );
 
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -52,6 +72,7 @@ export async function runMarketerRefresh(params: {
   existingCopy: ProductCopy;
   weaknessSummary: string;
 }): Promise<ProductCopy> {
+  const imageBlock = await fetchImageBlock(params.designImageUrl);
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 2048,
@@ -68,7 +89,7 @@ Return ONLY a JSON object: { "title": string, "description": string, "tags": str
     messages: [{
       role: "user",
       content: [
-        { type: "image", source: { type: "url", url: params.designImageUrl } },
+        imageBlock,
         {
           type: "text",
           text: `Current listing copy:\n${JSON.stringify(params.existingCopy, null, 2)}\n\nImprove the copy to address the identified weakness. Return the JSON schema.`,
